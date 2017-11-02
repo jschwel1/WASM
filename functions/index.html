@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+<!--
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>WebAssembly Example</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+-->
+<title>WebAssembly-JS Demo</title>
+</head>
+<body>
+	<!-- Include JS glue code. -->
+	<!-- this will load the WebAssembly module and run its main. -->
+	<script src="index.js"></script>
+	<script src="fxns.js"></script>
+	<script type='text/javascript'>
+		function displayRoll(){
+			var roll = _roll_dice();
+			console.log("Rolling die "+roll);
+			document.getElementById('result').innerHTML=roll;
+		}
+		function manyRolls(n) {
+			var record = [];
+			for (var i = 0; i < 6; i++) {
+				record[i] = 0;
+			}
+			for (var i = 0; i < n; i++){
+				var roll = _roll_dice();
+				record[roll-1]++;
+			}
+			document.getElementById('result').innerHTML=record;
+		}
+		function avgRolls(){
+			var num = parseInt(document.getElementById('numRolls').value);
+			console.log("Attemping " + num + " rolls");
+			var t1 = new Date().getTime();
+			var avg = _avgNRolls(num);
+			var t2 = new Date().getTime();
+			document.getElementById('result').innerHTML=avg + " in "
+				+(t2-t1) + "ms";
+		}
+		function avgJSRolls(){
+			var num = parseInt(document.getElementById('numRolls').value);
+			console.log("Attemping " + num + " rolls");
+			var t1 = new Date().getTime();
+			var sum = 0;
+			for (var i = 0; i < num; i++){
+				sum += Math.floor(Math.random()*6)+1;
+			}
+			var avg = sum/num;
+			var t2 = new Date().getTime();
+			document.getElementById('result').innerHTML=avg + " in " 				+ (t2-t1) + "ms";
+		}
+		function comb(){
+			var n = parseInt(document.getElementById('comb-n').value);
+			var k = parseInt(document.getElementById('comb-k').value);
+			document.getElementById('comb-result').innerHTML=
+				_choose(n,k);
+		}
+		function vigEncrypt(){
+			var msgPtr = allocate(intArrayFromString(document.getElementById('vigText').value), 'i8', ALLOC_NORMAL);
+			var keyPtr = allocate(intArrayFromString(document.getElementById('vigKey').value), 'i8', ALLOC_NORMAL);
+			document.getElementById('vigOut').value = "Working...";
+			document.getElementById('vigOut').value = 
+				Pointer_stringify(_vigenere(msgPtr, keyPtr));
+			_free(msgPtr);
+			_free(keyPtr);
+			console.log("Done...");
+		}
+		function moveToInput(){
+			document.getElementById('vigText').value = 
+				document.getElementById('vigOut').value;
+			document.getElementById('vigOut').value = "";
+		}
+		function clearInput(){
+			document.getElementById('vigText').value = "";
+		}
+		function addVectors(){
+			console.log("adding");
+			var nBytes = 8; // using doubles
+			// create two double (float64) arrays from the data in the two text areas--vect1 & vect 2
+			var a = document.getElementById('vect1').value.split(' ');
+			a = new Float64Array(a);
+			var b = document.getElementById('vect2').value.split(' ');
+			b = new Float64Array(b)
+			if (a.length != b.length) {
+				document.getElementById('vect1_vect2').value="Vectors must be the same length";
+				return;
+			}
+			// Create space in memory and put the data in the HEAP
+			var offsetA = Module._malloc(a.length*nBytes);
+			var offsetB = Module._malloc(b.length*nBytes);
+			var offsetResult = Module._malloc(a.length*nBytes);
+
+			Module.HEAPF64.set(a, offsetA/nBytes);
+			Module.HEAPF64.set(b, offsetB/nBytes);
+
+			// cwrap the function
+			vectorsum = Module.cwrap('vSum', 'number', ['number',
+														'number',
+														 'number',
+														 'number']);
+			vectorsum(offsetA, offsetB, offsetResult, a.length);
+			var result = Module.HEAPF64.subarray(
+								offsetResult/nBytes,
+								offsetResult/nBytes + a.length);
+			document.getElementById('vect1_vect2').value=
+				result;
+			// Now that the results are saved, free the memory
+			Module._free(offsetA);
+			Module._free(offsetB);
+			Module._free(offsetResult);
+		}
+		function dmVectors(){
+			var vectA = document.getElementById('dm_vect1').value.split(' ');
+			var ptrA = arrayToPtr(new Float64Array(vectA), 'double');
+			var vectB = document.getElementById('dm_vect2').value.split(' ');
+			var ptrB = arrayToPtr(new Float64Array(vectB), 'double');
+			if (vectA.length !== vectB.length) {
+				document.getElementById('dm_product').value=
+					"Arrays must be the same length";
+				Module._free(ptrA);
+				Module._free(ptrB);
+				return;
+			}
+			console.log("multiplying vectors of ", vectA.length, " elements");
+			var prodPtr = arrayToPtr(new Float64Array(vectA.length), 'double');	
+
+			jsDmVectors = Module.cwrap('dmVectors', 'number', ['number',
+															   'number',
+															   'number',
+												  			   'number']);
+			jsDmVectors(ptrA, ptrB, prodPtr, vectA.length);
+			var result = ptrToArray(prodPtr, vectA.length, "double");
+			document.getElementById('dm_product').value = result;
+			console.log("result is ", result.length, " elements long");
+			Module._free(ptrA);
+			Module._free(ptrB);
+			Module._free(prodPtr);
+		}
+		function incr(){
+			document.getElementById("btnCounter").value=Module._counter(0);
+//			alert(Module._counter(0));
+		}
+		var headPtr = null;
+		function addNode(val){
+			if (headPtr === null) {
+				headPtr = Module._createNode(val);
+			}
+			else {
+				Module._addNode(headPtr, val);
+			}
+		}
+		function getAndAddNode(){
+			var val = parseInt(prompt("Enter a value"), 10);
+			addNode(val);
+		}
+		function printList(){
+			Module._printList(headPtr);
+		}
+		function buildList(num){
+			var arr = [];
+			Module._addNode(headPtr, 213);
+			for (var i = 0; i < num; i++) {
+				arr.push(i);
+			}
+			var arr = new Int32Array(arr)
+			var arrPtr = arrayToPtr(arr, 'int32');
+			Module._addNodes(headPtr, arrPtr, arr.length);
+		}
+	</script>
+	<button onclick="displayRoll()">Roll Die</button>
+	<button onclick="manyRolls(50)">Roll Many</button>
+	<button onclick="avgRolls()">Average</button>
+	<button onclick="avgJSRolls()">Average JS</button>
+	<input type="textbox" id="numRolls"></input>
+	<p> Roll:
+		<a id="result"></a>
+	</p>
+	<p>
+		<input type="textbox" id="comb-n"></input>
+		choose
+		<input type="textbox" id="comb-k"></input>
+		<button type="submit" onclick="comb()">=</button>
+		<a id='comb-result'></a>
+	</p>
+	<h3> Vigenere </h3>
+	<p> Message:</p>
+	<textarea rows="10" cols="50" id="vigText">Enter unencrypted message
+	</textarea>
+	<p>Key:</p>
+	<textarea rows="1" cols="50" id="vigKey" maxlength="150">Keyword
+	</textarea>
+	<button onclick="vigEncrypt()">Encrypt</button>
+	<p>Output<button onclick="moveToInput()">Move to Input</button><button onclick="clearInput()">Clear Input</button></p>
+	<textarea rows="10" cols="50" id="vigOut"></textarea>
+	<h1>Vector addition</h1>
+	<p>Enter space separated doubles:<br>
+		&nbsp;&lt;<input type="text" cols="50" id="vect1">&gt;</br>
+		&nbsp;&lt;<input type="text" cols="50" id="vect2">&gt;</br>
+		<button onclick="addVectors()">+</button></br>
+		=&lt;<input type="text" cols="50" id="vect1_vect2">&gt;
+	</p>
+	<h1>Dot Multiply</h1>
+	<p>Enter space-separated doubles:<br>
+		&nbsp;&lt;<input type="text" cols="50" id="dm_vect1">&gt;</br>
+		&nbsp;&lt;<input type="text" cols="50" id="dm_vect2">&gt;</br>
+		<button onclick="dmVectors()">*</button></br>
+		=&lt;<input type="text" cols="50" id="dm_product">&gt;
+	</p>
+	<p><button onclick="incr()" id="btnCounter">counter</button></p>	
+	<p><button onclick="getAndAddNode()"> Add node </button></p>
+	<p><button onclick="printList()"> Print list </button></p>
+	
+</body>
+</html>

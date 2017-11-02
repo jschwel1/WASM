@@ -1,0 +1,135 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef NOWASM
+#include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
+
+#define HEIGHT 100 // height and width of the grid in pixels (max 1 cell per pixel)
+#define WIDTH 500 
+
+#define DIFFUSION_RATE 0.05
+
+void EMSCRIPTEN_KEEPALIVE setUp();
+void EMSCRIPTEN_KEEPALIVE diffuse(int timestep);
+float** EMSCRIPTEN_KEEPALIVE getGrid();
+int** EMSCRIPTEN_KEEPALIVE getPolygons(int res);
+void EMSCRIPTEN_KEEPALIVE printGrid();
+int* EMSCRIPTEN_KEEPALIVE getRowsUnder(int n);
+
+float solutes[HEIGHT][WIDTH];
+
+int main(int argc, char** argv){
+	setUp();	
+	printf("Module loaded and set up\n");
+	#ifdef NOWASM
+	while (1){
+		printGrid();
+		diffuse(9);
+		getc(stdin);
+	}
+	#endif
+	return 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE setUp(){
+	int r, c;
+	for (r = 0; r < 2; r++){
+		for (c = 0; c < WIDTH; c++){
+			solutes[r][c] = 100;
+		}
+	}
+	for (r = 2; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
+			solutes[r][c] = 0;
+		}
+	}
+}
+
+
+void EMSCRIPTEN_KEEPALIVE diffuse(int timestep){
+	int r,c;
+	for (r = 0; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
+			//update left
+			if (r-1 >= 0) {
+				int diff = ((solutes[r][c] - solutes[r-1][c])*timestep*DIFFUSION_RATE);
+				if (diff > 0){
+					solutes[r][c] -= diff;
+					solutes[r-1][c] += diff;
+				}
+			}
+			//update right
+			if (r+1 < HEIGHT){
+				int diff = ((solutes[r][c] - solutes[r+1][c])*timestep*DIFFUSION_RATE);
+				if (diff > 0){
+					solutes[r][c] -= diff;
+					solutes[r+1][c] += diff;
+				}
+			}
+			//update up
+			if (c-1 >= 0){
+				int diff = ((solutes[r][c] - solutes[r][c-1])*timestep*DIFFUSION_RATE);
+				if (diff > 0){
+					solutes[r][c] -= diff;
+					solutes[r][c-1] += diff;
+				}
+			}
+			//update down
+			if (c+1 < WIDTH){
+				int diff = ((solutes[r][c] - solutes[r][c+1])*timestep*DIFFUSION_RATE);
+				if (diff > 0){
+					solutes[r][c] -= diff;
+					solutes[r][c+1] += diff;
+				}
+			}
+		}
+	}
+}
+
+
+int** EMSCRIPTEN_KEEPALIVE getPolygons(int res){
+	int r,c;
+	int** bins = (int**)malloc(sizeof(int*)*res);
+	for (r = 0; r < res; r++){
+		bins[r] = (int*)malloc(sizeof(int)*WIDTH);
+	}
+	for (c = 0; c < WIDTH; c++){
+		int bin = 0;
+		for (r = 0; r < HEIGHT; r++){
+			if (solutes[r][c] >= 100*bin/res){
+				bins[bin][c] = r;
+				bin++;
+			}
+		}
+		for (r = bin; r < res; r++) bins[r][c] = HEIGHT;
+	}
+	return bins;
+}
+
+void EMSCRIPTEN_KEEPALIVE printGrid(){
+	int r,c;
+	for (r = 0; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
+			printf("%3.0f ",solutes[r][c]);
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+}
+
+int* EMSCRIPTEN_KEEPALIVE getRowsUnder(int n){
+	int* rows = (int*)malloc(sizeof(int)*WIDTH);
+	int r,c;
+	for (c = 0; c < WIDTH; c++){
+		for (r = 0; r < WIDTH; r++){
+			if (solutes[r][c] <= n) break;
+		}
+		rows[c] = r;
+	}
+	return rows;
+}

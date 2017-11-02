@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef NOWASM
+#include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
+
+#define HEIGHT 50 // height and width of the grid in pixels (max 1 cell per pixel)
+#define WIDTH 50 
+
+#define DIFFUSE_RATE 0.5;
+
+void EMSCRIPTEN_KEEPALIVE setUp();
+void EMSCRIPTEN_KEEPALIVE diffuse(int timestep);
+float** EMSCRIPTEN_KEEPALIVE getGrid();
+float** EMSCRIPTEN_KEEPALIVE getPolygons(float res);
+
+
+float solutes[HEIGHT][WIDTH];
+
+int main(int argc, char** argv){
+	setUp();	
+	printf("Module loaded and set up");
+	return 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE setUp(){
+	int r, c;
+	for (r = 0; r < HEIGHT<<2; r++){
+		for (c = 0; c < WIDTH; c++){
+			solutes[r][c] = 100;
+		}
+	}
+	for (r = HEIGHT<<2; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
+			solutes[r][c] = 0;
+		}
+	}
+}
+
+
+void EMSCRIPTEN_KEEPALIVE diffuse(int timestep){
+	for (r = 0; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
+			//update left
+			if (r-1 >= 0) {
+				int diff = (solutes[r][c] - solutes[r-1][c])*timestep*DIFFUSION_RATE;
+				solutes[r][c] += diff;
+				solutes[r-1][c] -= diff;
+			}
+			//update right
+			if (r+1 < HEIGHT){
+				int diff = (solutes[r][c] - solutes[r+1][c])*timestep*DIFFUSION_RATE;
+				solutes[r][c] += diff;
+				solutes[r+1][c] -= diff;
+			}
+			//update up
+			if (c-1 >= 0){
+				int diff = (solutes[r][c] - solutes[r][c-1])*timestep*DIFFUSION_RATE;
+				solutes[r][c] += diff;
+				solutes[r][c-1] -= diff;
+			}
+			//update down
+			if (c+1 < WIDTH){
+				int diff = (solutes[r][c] - solutes[r][c+1])*timestep*DIFFUSION_RATE;
+				solutes[r][c] += diff;
+				solutes[r][c+1] -= diff;
+			}
+		}
+	}
+}

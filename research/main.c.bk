@@ -1,0 +1,136 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef NOWASM
+#include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
+
+#define HEIGHT 50 // height and width of the grid in pixels (max 1 cell per pixel)
+#define WIDTH 50 
+
+typedef struct cell_t{
+	int16_t xloc;
+	int16_t yloc;
+	int16_t zloc;
+	uint8_t radius;
+	uint8_t id;
+} cell;
+
+typedef struct cellListNode_t{
+	cell* thisCell;
+	struct cellListNode_t* next;
+} cellListNode;
+
+void EMSCRIPTEN_KEEPALIVE printCellGrid();
+cell* EMSCRIPTEN_KEEPALIVE newCell();
+cell* EMSCRIPTEN_KEEPALIVE addNewCellToList(cellListNode* cl);
+cell* EMSCRIPTEN_KEEPALIVE replicate(cell* c, cellListNode* cl);
+cellListNode* EMSCRIPTEN_KEEPALIVE newCellListNode();
+void EMSCRIPTEN_KEEPALIVE move(cell* c, int8_t x, int8_t y, int8_t z);
+void EMSCRIPTEN_KEEPALIVE printCells(cellListNode* list);
+
+cellListNode* cellList;
+
+int main(int argc, char** argv){
+	printf("WebAssembly painting module loaded\n");
+	cellList = newCellListNode();
+	cell* tempCell = cellList->thisCell;
+
+	int i;
+	for (i = 0; i < 10; i++){
+		tempCell = replicate(tempCell, cellList);
+		move(tempCell, 1, 2, 3); 
+	}
+	printf("Done moving, now printing\n");
+	printCells(cellList);
+	return 0;
+}
+
+cell* EMSCRIPTEN_KEEPALIVE newCell(){
+	static uint8_t id = 1;
+	printf("Getting the space for this cell\n");
+	cell* nc = (cell*)malloc(sizeof(cell));
+	nc->id = id++;
+	printf("Created new cell: #%d\n", nc->id);
+	return nc;
+}
+
+cellListNode* EMSCRIPTEN_KEEPALIVE newCellListNode(){
+	cellListNode* newNode = (cellListNode*)malloc(sizeof(cellListNode));
+	printf("Created Node, now adding new cell to this one\n");
+	newNode->next = NULL;
+	printf("jump to newCell();\n");
+	newNode->thisCell = newCell();
+	return newNode;
+}
+
+cell* EMSCRIPTEN_KEEPALIVE addNewCellToList(cellListNode* c){
+	cellListNode* last = c;
+	while (last->next != NULL){
+		last = last->next;
+	}
+	last->next = newCellListNode();
+	return last->next->thisCell;
+}
+
+cell* EMSCRIPTEN_KEEPALIVE replicate(cell* c, cellListNode* cl){
+    cell* nc = newCell();
+    nc->xloc = c->xloc;
+    nc->xloc = c->yloc;
+    nc->xloc = c->zloc;
+    nc->radius = c->radius>>2;
+    c->radius = nc->radius;
+	
+	cellListNode* last = cl;
+	while (last->next != NULL){
+		last = last->next;
+	}
+	printf("last cell: #%d\n", last->thisCell->id);
+	last->next = newCellListNode();
+	last->next->thisCell = nc;
+    return nc;
+}
+
+
+void EMSCRIPTEN_KEEPALIVE move(cell* c, int8_t x, int8_t y, int8_t z){
+	printf("Moving cell #%d by (%d, %d, %d)\n", c->id, x, y, z);
+	c->xloc+=x;
+	c->yloc+=y;
+	c->zloc+=z;
+}
+
+void EMSCRIPTEN_KEEPALIVE printCells(cellListNode* list){
+	int maxX = 0;
+	int maxY = 0;
+
+	cellListNode* node = list;
+	while (node != NULL) {
+		if (maxX < node->thisCell->xloc) maxX = node->thisCell->xloc;
+		if (maxY < node->thisCell->yloc) maxY = node->thisCell->yloc;
+		printf("this node: #%d\n", node->thisCell->id);
+		node = node->next;
+	}
+	
+	char field[maxY][maxX];
+	memset(field, ' ', sizeof(char)*maxX*maxY);
+	node = list;
+	while (node != NULL) {
+		field[node->thisCell->xloc][node->thisCell->xloc] = '*';
+		printf("Node #%d is at(%d,%d)\n", node->thisCell->id, node->thisCell->xloc, node->thisCell->yloc);
+		node = node->next;
+	}
+
+	int r, c;
+	for (r = 0; r < maxY; r++){
+		for (c = 0; c < maxX; c++){
+			printf("%c", field[r][c]);
+		}
+		printf("\n");
+	}
+
+
+}
