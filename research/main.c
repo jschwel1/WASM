@@ -16,8 +16,11 @@
 #define DEBUG(...)
 #endif
 
-#define HEIGHT 200 // height and width of the grid in pixels (max 1 cell per pixel)
-#define WIDTH 500
+#define unit_size uint16_t
+#define ALL_ONES 0xFFFF
+
+#define HEIGHT 100 // height and width of the grid in pixels (max 1 cell per pixel)
+#define WIDTH 100
 #define MIN_MASS 10
 
 #define NONE 0
@@ -61,7 +64,7 @@ int outOfBounds(int r, int c);
 point* EMSCRIPTEN_KEEPALIVE getPolygons();
 void EMSCRIPTEN_KEEPALIVE printGrid();
 
-void EMSCRIPTEN_KEEPALIVE printMatrix(uint8_t mat[HEIGHT][WIDTH]);
+void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]);
 float** cellMap;//[HEIGHT][WIDTH];
 
 int main(int argc, char** argv){
@@ -159,20 +162,21 @@ void updateTracer(tracer* t, int moveDir, int turnDir){
 
 point* EMSCRIPTEN_KEEPALIVE getPolygons(){
 	int r,c;
-	point* seqList = (point*)malloc(sizeof(point)*WIDTH*HEIGHT*2);
-	printf("seqList starts at: %p\n", seqList);
+	point* seqList = (point*)malloc(sizeof(point)*WIDTH*HEIGHT);
+	DEBUG(printf("seqList starts at: %p\n", seqList));
 	int seqIdx = 0;
 	int labelCount = 0;
 	// create a table of labels to remap certain values if needed
     memset(seqList, 0, sizeof(point)*WIDTH*HEIGHT);
 	// A new grid of the same size to keep track of what values are where. It is defaulted to all 1s (111...111)
 	// but will be updated once touched.
-	uint8_t gridCpy[HEIGHT][WIDTH];
-	memset(gridCpy, ~(0), sizeof(uint8_t)*HEIGHT*WIDTH);
+	unit_size gridCpy[HEIGHT][WIDTH];
+	memset(gridCpy, ALL_ONES, sizeof(unit_size)*HEIGHT*WIDTH);
 	
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
-			if (gridCpy[r][c] != 255){
+			DEBUG(printf("{r=%d, c=%d} -> seqIdx = %d\n", r, c, seqIdx));
+			if (gridCpy[r][c] != ALL_ONES){
 				DEBUG(printf("Skipping r, c = %d, %d\n", r, c));
 				continue;
 			}
@@ -205,6 +209,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
         					seqList[seqIdx++].x = T->c;
 							updateTracer(T, LEFT, LEFT); // inner
 							gridCpy[T->r][T->c] = labelCount;
+							if (T->r == r && T->c == c) fullCircle = 1;
         					seqList[seqIdx].y = T->r;
         					seqList[seqIdx++].x = T->c;
 							updateTracer(T, LEFT, LEFT);
@@ -235,6 +240,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
 				else {
 				    oob++;
 				}
+				if (T->r == r && T->c == c) fullCircle = 1;
 				// Stage 2
 				// get front-left and front cells
 				int rFL = 0, cFL = 0, rF = 0, cF = 0;
@@ -250,6 +256,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
         					seqList[seqIdx++].x = T->c;
 							updateTracer(T, FRONT, LEFT);
 							gridCpy[T->r][T->c] = labelCount;
+							if (T->r == r && T->c == c) fullCircle = 1;
         					seqList[seqIdx].y = T->r;
         					seqList[seqIdx++].x = T->c;
 							updateTracer(T, FRONT, RIGHT);
@@ -281,7 +288,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
 			        break;
 			    }
 				// Check if the loop should break
-				if ((T->r == r) && (T->c == c)) break;
+				if ((T->r == r) && (T->c == c)) fullCircle = 1;
 			}
 			DEBUG(printf("Sequence:%d\n", labelCount));
 			
@@ -305,7 +312,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
         		    if (gridCpy[subr][subc] == labelCount){
         		        filling = !filling;
         		    }
-        		    else if (filling && gridCpy[subr][subc] == 255){
+        		    else if (filling && gridCpy[subr][subc] == ALL_ONES){
         		        gridCpy[subr][subc] = labelCount;
         		    }
         		}
@@ -337,7 +344,6 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
 		printf("%3d %3d\n", seqList[i].x, seqList[i].y);
 	}
 	*/
-	printf("Done making polygons\n");
 	return seqList;
 }
 
@@ -352,11 +358,12 @@ void EMSCRIPTEN_KEEPALIVE printGrid(){
 	printf("\n\n");
 }
 
-void EMSCRIPTEN_KEEPALIVE printMatrix(uint8_t mat[HEIGHT][WIDTH]){
+void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]){
 	int r,c;
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
-			printf("%2d ", mat[r][c]);
+// 			printf("%2d ", mat[r][c]);
+			printf("%c", mat[r][c] == ALL_ONES?'x':mat[r][c]==0?'-':'#');
 		}
 		printf("\n");
 	}
