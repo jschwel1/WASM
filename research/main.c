@@ -82,26 +82,34 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
 	for (r = 0; r < HEIGHT; r++){
 		cellMap[r] = malloc(sizeof(float)*WIDTH);
 	}
+	
+	
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
             cellMap[r][c] = 0;
+		}
+	}
+	for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
+		for (c = WIDTH/4; c < 3*WIDTH/4; c++){
+		    cellMap[r][c] = 5;
+		}
+	}
+	
+	for (r = 0; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
 
             if (r == 0 || c == 0 || r == HEIGHT-1 || c == WIDTH-1){
                 cellMap[r][c] = 0;
                 continue;
             }
-			cellMap[r][c] = 5*(sin(r/2)+1)*(sin(c/3)+1);
+			cellMap[r][c] += 5*(sin(r/2)+1)*(sin(c/3)+1);
 
 		}
 	}
 
-/*
-	for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
-		for (c = WIDTH/4; c < 3*WIDTH/4; c++){
-		    cellMap[r][c] = 55;
-		}
-	}
-*/
+
+
+
 }
 
 
@@ -357,8 +365,8 @@ void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]){
 	int r,c;
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
-			printf("%2d ", mat[r][c]);
-// 			printf("%c", mat[r][c] == ALL_ONES?'x':mat[r][c]==0?'-':'#');
+// 			printf("%2d ", mat[r][c]);
+			printf("%c", mat[r][c] == ALL_ONES?'x':mat[r][c]==0?'-':'#');
 		}
 		printf("\n");
 	}
