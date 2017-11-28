@@ -58,7 +58,6 @@ void EMSCRIPTEN_KEEPALIVE updateTracer(tracer* t, int moveDir, int turnDir);
 
 
 void EMSCRIPTEN_KEEPALIVE setUp();
-void EMSCRIPTEN_KEEPALIVE quantize();
 float** EMSCRIPTEN_KEEPALIVE getGrid();
 int outOfBounds(int r, int c);
 point* EMSCRIPTEN_KEEPALIVE getPolygons(float compVal);
@@ -70,13 +69,11 @@ float** cellMap;//[HEIGHT][WIDTH];
 
 int main(int argc, char** argv){
 	setUp();
-	quantize();
 	DEBUG(printGrid());
 	printf("Module loaded and set up\n");
 	#ifdef NOWASM
 	//printGrid();
-	float cv = atof(argv[1]);
-	getPolygons(cv);
+	getPolygons(10);
 	#endif
 	return 0;
 }
@@ -94,14 +91,14 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
             cellMap[r][c] = 0;
 		}
 	}
-
+/*
 	for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
 		for (c = WIDTH/4; c < 3*WIDTH/4; c++){
 		    cellMap[r][c] = 5;
 		}
 	}
-
-
+*/
+/*
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
 
@@ -114,28 +111,17 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
 
 		}
 	}
-
+*/
 	for (r = 1; r < HEIGHT-1; r++){
 		for (c = 1; c < WIDTH-1; c++){
-            cellMap[r][c] = 0;
+            cellMap[r][c] = 3;
 		}
 	}
 	for (r = HEIGHT/2; r < 2*HEIGHT/3; r++){
 		for (c = WIDTH/2; c < 3*WIDTH/4; c++){
-		    cellMap[r][c] = 3;
+		    cellMap[r][c] = 1;
 		}
 	}
-	for (r = 2; r < 5; r++){
-	    for (c= 2; c < 9; c++){
-	        cellMap[r][c] = 5;
-	    }
-	}
-	cellMap[3][3] = 1;
-	cellMap[3][4] = 1;
-	cellMap[3][5] = 1;
-	cellMap[3][6] = 1;
-	cellMap[3][7] = 1;
-	
 	float angle;
 	int radius;
 	for (radius = 5; radius < 20; radius++){
@@ -143,18 +129,9 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
     	    cellMap[(int)(radius*sin(angle))+HEIGHT/3][(int)(radius*cos(angle))+WIDTH/3] = 20-radius;
     	}
 	}
-    
 
 
-}
 
-void EMSCRIPTEN_KEEPALIVE quantize(){
-    int r, c;
-    for (r = 0; r < HEIGHT; r++){
-        for (c = 0; c < WIDTH; c++){
-            cellMap[r][c] = (int)((cellMap[r][c])/10);
-        }
-    }
 }
 
 
@@ -234,40 +211,24 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(float compVal){
 	// but will be updated once touched.
 	unit_size gridCpy[HEIGHT][WIDTH];
 	memset(gridCpy, ALL_ONES, sizeof(unit_size)*HEIGHT*WIDTH);
-	char thisCell, prevCell;
-	// ignore edges while looping through all cells
-	for (r = 1; r < HEIGHT-1; r++){
-	    prevCell = 0;
-		for (c = 1; c < WIDTH-1; c++){
+	
+	for (r = 0; r < HEIGHT; r++){
+		for (c = 0; c < WIDTH; c++){
 			DEBUG(printf("{r=%d, c=%d} -> seqIdx = %d\n", r, c, seqIdx));
-			// Probably won't need this anymore
 			if (gridCpy[r][c] != ALL_ONES){
-			//	DEBUG(printf("Skipping r, c = %d, %d\n", r, c));
+				DEBUG(printf("Skipping r, c = %d, %d\n", r, c));
 				continue;
 			}
 			DEBUG(printf("Checking %d, %d\n", r, c));
 			// Does this cell qualify?
-			thisCell = qualifies(cellMap[r][c], compVal);
-			char boundary = 0;
-			tracer* T;
-			switch((prevCell << 1)|thisCell){
-			    case 0: // No change
-			    case 3: //
-			        boundary = 1;
-			        gridCpy[r][c] = 0;
-			        break;
-			    case 1: // 01
-			        T = newTracer(r,c,E); // Tracer will start off facing east
-			        break;
-			    case 2: // 10
-			        prevCell = 0;
-			        c--;
-			        T = newTracer(r,c,W); // Tracer will start off facing west
-			        break;
+			if (!qualifies(cellMap[r][c], compVal)){
+				gridCpy[r][c] = 0;
+			    continue;
 			}
-			if (boundary) continue;
+			    
 		    DEBUG(printf("\tFound->%f\n", cellMap[r][c]));
 			gridCpy[r][c] = ++labelCount;
+			tracer* T = newTracer(r,c,E); // Tracer will start off facing east
 			char fullCircle = 0;
 			while (!fullCircle && seqIdx < WIDTH*HEIGHT){
 			    DEBUG(printf("Tracer(%d) is at %d, %d, dir=%d\n", labelCount, T->r, T->c, T->d));
@@ -314,7 +275,6 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(float compVal){
 							// Outer
 						}
 					}
-					if (T->r == r && T->c == c) fullCircle = 1;
 				}
 				else {
 				    oob++;
@@ -373,14 +333,12 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(float compVal){
 			    }
 				// Check if the loop should break
 				if ((T->r == r) && (T->c == c)) fullCircle = 1;
-				prevCell = thisCell;
 			}
 			seqList[seqIdx].y = T->r;
 			seqList[seqIdx++].x = T->c;
 			DEBUG(printf("Sequence:%d\n", labelCount));
 			
 			/******* FILL IN POLYGON  WITH LABELCOUNT *****/
-			/*
 			int i;
 			int minx = seqList[0].x;
 			int miny = seqList[0].y;
@@ -409,7 +367,6 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(float compVal){
         		    }
         		}
         	}
-        	*/
 		}
 	}
     DEBUG(printMatrix(gridCpy));
@@ -449,8 +406,8 @@ void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]){
 	int r,c;
 	for (r = 0; r < HEIGHT; r++){
 		for (c = 0; c < WIDTH; c++){
-			printf("%2d ", mat[r][c] == ALL_ONES?0:mat[r][c]);
-// 			printf("%c", mat[r][c] == ALL_ONES?'x':mat[r][c]==0?'-':'#');
+// 			printf("%2d ", mat[r][c]);
+			printf("%c", mat[r][c] == ALL_ONES?'x':mat[r][c]==0?'-':'#');
 		}
 		printf("\n");
 	}
