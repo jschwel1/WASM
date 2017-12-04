@@ -1,26 +1,46 @@
-function runAndDraw(val){
-    if (!val) val = 10;
+
+// NEED TO ADD SUPPORT FOR NEW FORMAT! (x, y, val, depth)
+function runAndDraw(){
 	var start = new Date().getTime();
-	var r = Module._getPolygons(val);
+	var r = Module._getPolygons();
+	console.log(r);
 	var arr = Module["HEAP32"].subarray(r/4, r/4+20000);
+	
 	var ctx = document.querySelector("canvas").getContext("2d");
-	ctx.fillStyle = "rgb("+Math.floor(255*val/30)+", "
-						  +Math.floor(255*val/30)+", "
-						  +Math.floor(255*val/30)+")";
+// 	ctx.fillStyle = "rgb("+Math.floor(255*val/30)+", "
+// 						  +Math.floor(255*val/30)+", "
+// 						  +Math.floor(255*val/30)+")";
 //	ctx.clearRect(0, 0, 500, 500);
 	ctx.beginPath();
 	ctx.moveTo(arr[0]*5, arr[1]*5);
 	var sptx = arr[0];
 	var spty = arr[1];
-	for (var i = 2; i < arr.length-1; i+=2){
-		if (Math_abs(arr[i]-arr[i-2]) > 2 || Math_abs(arr[i+1]-arr[i-1]) > 2){
+// 	console.log("Starting at (" + sptx + ", " + spty + ")")
+	for (var i = 4; i < arr.length-1; i+=4){
+	    var thisX = arr[i], thisY = arr[i+1];
+	    if (thisX == 0 && thisY == 0){
+	        i = arr.length;
+	        continue;
+	    }
+		if (thisX == sptx && thisY == spty){
+        	    var enc = arr[i+2];
+        	    var fillVal = Math.floor(255*enc/5);
+        	   // var fillVal = 9;
+        	    ctx.fillStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
 				ctx.closePath();
-				ctx.stroke();
-				ctx.beginPath();
-				ctx.moveTo(arr[i]*5, arr[i+1]*5);
+				ctx.fill();
+				sptx = null;
+				spty = null;
+		}
+		else if (sptx == null || spty == null){
+		    sptx = thisX;
+		    spty = thisY;
+			ctx.beginPath();
+			ctx.moveTo(thisX*5, thisY*5);
+// 			console.log("STARTING NEW at _______ (" + spty + ", " + sptx + ")");
 		}
 		else
-			ctx.lineTo(arr[i]*5, arr[i+1]*5);
+			ctx.lineTo(thisX*5, thisY*5);
 	}
 	ctx.closePath();
 	ctx.stroke();
