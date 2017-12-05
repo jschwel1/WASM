@@ -3,7 +3,7 @@
 function runAndDraw(){
 	var start = new Date().getTime();
 	var r = Module._getPolygons();
-	console.log(r);
+// 	console.log(r);
 	var arr = Module["HEAP32"].subarray(r/4, r/4+20000);
 	
 	var ctx = document.querySelector("canvas").getContext("2d");
@@ -24,11 +24,12 @@ function runAndDraw(){
 	    }
 		if (thisX == sptx && thisY == spty){
         	    var enc = arr[i+2];
-        	    var fillVal = Math.floor(255*enc/5);
-        	   // var fillVal = 9;
-        	    ctx.fillStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
+        	    var fillVal = Math.floor(255*enc/10);
+        	   // ctx.fillStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
+        	    ctx.strokeStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
 				ctx.closePath();
-				ctx.fill();
+				// ctx.fill();
+				ctx.stroke();
 				sptx = null;
 				spty = null;
 		}
@@ -45,8 +46,24 @@ function runAndDraw(){
 	ctx.closePath();
 	ctx.stroke();
 	var end = new Date().getTime();
-	console.log(end-start + " ms");
+// 	console.log(end-start + " ms");
+    return (end-start);
 }
+
+function getAverage(){
+    var ctx = document.querySelector("canvas").getContext("2d");
+    var sum = 0;
+    var timeArr = [];
+    for (var i = 0; i < 500; i++){
+        ctx.clearRect(0, 0, 500, 500);
+        var t = runAndDraw();
+        sum+=t;
+        timeArr.push(t);
+    }
+    console.log(sum/500);
+    return timeArr;
+}
+
 
 var level = 1;
 var last = null;
