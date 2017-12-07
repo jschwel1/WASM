@@ -1,21 +1,15 @@
 
-// NEED TO ADD SUPPORT FOR NEW FORMAT! (x, y, val, depth)
+var scale = 2;
 function runAndDraw(){
 	var start = new Date().getTime();
 	var r = Module._getPolygons();
-// 	console.log(r);
 	var arr = Module["HEAP32"].subarray(r/4, r/4+20000);
 	
 	var ctx = document.querySelector("canvas").getContext("2d");
-// 	ctx.fillStyle = "rgb("+Math.floor(255*val/30)+", "
-// 						  +Math.floor(255*val/30)+", "
-// 						  +Math.floor(255*val/30)+")";
-//	ctx.clearRect(0, 0, 500, 500);
 	ctx.beginPath();
-	ctx.moveTo(arr[0]*5, arr[1]*5);
+	ctx.moveTo(arr[0]*scale, arr[1]*scale);
 	var sptx = arr[0];
 	var spty = arr[1];
-// 	console.log("Starting at (" + sptx + ", " + spty + ")")
 	for (var i = 4; i < arr.length-1; i+=4){
 	    var thisX = arr[i], thisY = arr[i+1];
 	    if (thisX == 0 && thisY == 0){
@@ -37,12 +31,14 @@ function runAndDraw(){
 		    sptx = thisX;
 		    spty = thisY;
 			ctx.beginPath();
-			ctx.moveTo(thisX*5, thisY*5);
-// 			console.log("STARTING NEW at _______ (" + spty + ", " + sptx + ")");
+			ctx.moveTo(thisX*scale, thisY*scale);
 		}
 		else
-			ctx.lineTo(thisX*5, thisY*5);
+			ctx.lineTo(thisX*scale, thisY*scale);
 	}
+	var enc = arr[i+2];
+	var fillVal = Math.floor(255*enc/10);
+	ctx.strokeStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
 	ctx.closePath();
 	ctx.stroke();
 	var end = new Date().getTime();
