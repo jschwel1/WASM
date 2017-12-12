@@ -80,10 +80,13 @@ function startAnimation(fps){
 
 function animate(time){
     if (last === null) last = time;
-    
+    var ctx = document.querySelector("canvas").getContext("2d");
+   	ctx.clearRect(0, 0, 500, 500);
     if (time-last > fr){
-        level+=(time-last)*.01;
-   	 	runAndDraw(level);
+        // level+=(time-last)*.01;
+        level += 1;
+        Module._diffuse();
+   	 	runAndDraw();
        //console.log(1000/(time-last) + " fps");
         sum += 1000/(time-last);
         count++;
@@ -92,5 +95,28 @@ function animate(time){
     if (level < 30){
         requestAnimationFrame(animate);
     }
+    else {
+        console.log(done);
+    }
     
+}
+
+function startAnimateDiffustion(iterations){
+    level = iterations || 1;
+    requestAnimationFrame(animateDiffusion);
+}
+
+
+var lastTime = 0;
+function animateDiffusion(time){
+	if (time > lastTime+30) {
+		lastTime = time;
+        var ctx = document.querySelector("canvas").getContext("2d");
+        ctx.clearRect(0, 0, 500, 500); Module._diffuse(); runAndDraw();
+        level--;
+    
+    }
+	if (level > 0){
+        requestAnimationFrame(animateDiffusion);
+    }
 }

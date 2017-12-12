@@ -22,6 +22,8 @@
 #define HEIGHT 200 // height and width of the grid in pixels (max 1 cell per pixel)
 #define WIDTH 200
 
+#define DIFF_CONST .1
+
 #define NONE 15
 #define FRONT 0
 #define FRONT_RIGHT 1
@@ -67,9 +69,10 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons();
 void EMSCRIPTEN_KEEPALIVE printGrid();
 void EMSCRIPTEN_KEEPALIVE printQGrid();
 char qualifies(float val, float compVal);
+void EMSCRIPTEN_KEEPALIVE diffuse();
 
 void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]);
-float** cellMap;//[HEIGHT][WIDTH];
+float** concentrationMap;//[HEIGHT][WIDTH];
 int** quantizedCM;
 
 int main(int argc, char** argv){
@@ -78,32 +81,38 @@ int main(int argc, char** argv){
     DEBUG(printQGrid());
     printf("Module loaded and set up\n");
     #ifdef NOWASM
-    //printGrid();
+    printGrid();
     getPolygons();
+    int i;
+    for (i = 0; i < atoi(argv[1]); i++){
+        diffuse();
+        // printGrid();
+    }
+    printGrid();
     #endif
     return 0;
 }
 
 void EMSCRIPTEN_KEEPALIVE setUp(){
-    // Set up cellMap and quantizeCM
-    cellMap = (float**)malloc(sizeof(float*)*HEIGHT);
+    // Set up concentrationMap and quantizeCM
+    concentrationMap = (float**)malloc(sizeof(float*)*HEIGHT);
     quantizedCM = (int**)malloc(sizeof(int*)*HEIGHT);
     int r, c;
     for (r = 0; r < HEIGHT; r++){
-        cellMap[r] = malloc(sizeof(float)*WIDTH);
+        concentrationMap[r] = malloc(sizeof(float)*WIDTH);
         quantizedCM[r] = malloc(sizeof(int)*WIDTH);
     }
-    // Clear the cellMap
+    // Clear the concentrationMap
     for (r = 0; r < HEIGHT; r++){
         for (c = 0; c < WIDTH; c++){
-            cellMap[r][c] = 0;
+            concentrationMap[r][c] = 0;
         }
     }
 
     // 1/3 -> 2/3 vertically & 1/4 -> 3/4 horizontally rectangle of 25
     for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
         for (c = WIDTH/4; c < 3*WIDTH/4; c++){
-            cellMap[r][c] = 25;
+            concentrationMap[r][c] = 25;
         }
     }
 
@@ -111,49 +120,49 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
 
 //     for (r = 1; r < HEIGHT-1; r++){
 //         for (c = 1; c < WIDTH-1; c++){
-//             cellMap[r][c] = 0;
+//             concentrationMap[r][c] = 0;
 //         }
 //     }
 //     for (r = HEIGHT/2; r < 2*HEIGHT/3; r++){
 //         for (c = WIDTH/2; c < 3*WIDTH/4; c++){
-//             cellMap[r][c] = 3;
+//             concentrationMap[r][c] = 3;
 //         }
 //     }
     
 //     for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
 //         for (c = WIDTH/4; c < 3*WIDTH/4; c++){
-//             cellMap[r][c] = 25;
+//             concentrationMap[r][c] = 25;
 //         }
 //     }
     
 //     for (r = 2; r < 5; r++){
 //         for (c= 2; c < 9; c++){
-//             cellMap[r][c] = 50;
+//             concentrationMap[r][c] = 50;
 //         }
 //     }
-//     cellMap[3][3] = 1;
-//     cellMap[3][4] = 1;
-//     cellMap[3][5] = 1;
-//     cellMap[3][6] = 1;
-//     cellMap[3][7] = 1;
+//     concentrationMap[3][3] = 1;
+//     concentrationMap[3][4] = 1;
+//     concentrationMap[3][5] = 1;
+//     concentrationMap[3][6] = 1;
+//     concentrationMap[3][7] = 1;
     
-    float angle;
-    int radius;
-    for (radius = 5; radius < 20; radius++){
-        for (angle = 0; angle < 2*M_PI; angle+=0.001){
-            cellMap[(int)(radius*sin(angle))+HEIGHT/3][(int)(radius*cos(angle))+WIDTH/3] = 100-radius;
-        }
-    }
+    // float angle;
+    // int radius;
+    // for (radius = 5; radius < 20; radius++){
+    //     for (angle = 0; angle < 2*M_PI; angle+=0.001){
+    //         concentrationMap[(int)(radius*sin(angle))+HEIGHT/3][(int)(radius*cos(angle))+WIDTH/3] = 100-radius;
+    //     }
+    // }
     
 //     for (r = 0; r < HEIGHT; r++){
 //         for (c = 0; c < WIDTH; c++){
 
 //             if (r == 0 || c == 0 || r == HEIGHT-1 || c == WIDTH-1){
-//                 cellMap[r][c] = 0;
+//                 concentrationMap[r][c] = 0;
 //                 continue;
 //             }
-//             cellMap[r][c] += 5*(sin(r/30)+1)*(sin(c/30)+1);
-//             cellMap[r][c] += 5*(sin(r/15))*(sin(c/15));
+//             concentrationMap[r][c] += 5*(sin(r/30)+1)*(sin(c/30)+1);
+//             concentrationMap[r][c] += 5*(sin(r/15))*(sin(c/15));
 
 //         }
 //     }
@@ -165,7 +174,7 @@ void EMSCRIPTEN_KEEPALIVE quantize(){
     int r, c;
     for (r = 0; r < HEIGHT; r++){
         for (c = 0; c < WIDTH; c++){
-            quantizedCM[r][c] = (int)((cellMap[r][c])/10);
+            quantizedCM[r][c] = (int)((concentrationMap[r][c])/10);
         }
     }
 }
@@ -429,9 +438,9 @@ void EMSCRIPTEN_KEEPALIVE printGrid(){
     for (r = 0; r < HEIGHT; r++){
         for (c = 0; c < WIDTH; c++){
             #ifdef DEBUGGING
-            printf("%d,",(int)(cellMap[r][c]));
+            printf("%d,",(int)(concentrationMap[r][c]));
             #else
-            printf("%2d ",(int)(cellMap[r][c]));
+            printf("%2d ",(int)(concentrationMap[r][c]));
             #endif
         }
         printf("\n");
@@ -463,4 +472,115 @@ void EMSCRIPTEN_KEEPALIVE printMatrix(unit_size mat[HEIGHT][WIDTH]){
         printf("\n");
     }
     printf("\n\n");
+}
+void EMSCRIPTEN_KEEPALIVE printfMatrix(float mat[HEIGHT][WIDTH]){
+    int r,c;
+    for (r = 0; r < HEIGHT; r++){
+        for (c = 0; c < WIDTH; c++){
+            printf("%2.2f ", mat[r][c]);
+        }
+        printf("\n");
+    }
+    printf("\n\n");
+}
+
+float EMSCRIPTEN_KEEPALIVE linReg(float a, float b, float c){
+    // sumX = 0 (= -1 + 0 + 1)
+    // sumXX = 2
+    // n = 3;
+    // Equation from: https://www.mathportal.org/calculators/statistics-calculator/correlation-and-regression-calculator.php
+    float sumXY = (c - a);
+    return (3*sumXY)/(6); // the slope ONLY of the linear regression
+}
+
+void EMSCRIPTEN_KEEPALIVE diffuse(){
+    // create a copies of concentrationMap for 2nd derrivatives in x & y
+    float dr1[HEIGHT][WIDTH];
+    float dc1[HEIGHT][WIDTH];
+    float dr2[HEIGHT][WIDTH];
+    float dc2[HEIGHT][WIDTH];
+    int r,c;
+    // Use line of best fit to estimate derrivative (2->3 pts if edge or not)
+    // (Linear Regression). Do twice to get second derrivative, then plug into
+    // Eq 10 to calculate diff in concentration/time
+    // 1st derrivatives
+    for (r = 0; r < HEIGHT; r++){
+        for (c= 0; c < WIDTH; c++){
+            // Edge cases use simple slope equation
+            if (r == 0) {
+                // rise/run
+                dr1[r][c] = (concentrationMap[r+1][c] - concentrationMap[r][c])/2;
+            }
+            else if (r == HEIGHT-1) {
+                // rise/run
+                dr1[r][c] = (concentrationMap[r-1][c] - concentrationMap[r][c])/2;
+            }
+            else {
+                // Linear regression
+                dr1[r][c] = linReg(concentrationMap[r-1][c], concentrationMap[r][c], concentrationMap[r+1][c]);
+            }
+            
+            if (c == 0) {
+                // rise/run
+                dc1[r][c] = (concentrationMap[r][c+1] - concentrationMap[r][c])/2;
+            }
+            else if (c == WIDTH-1) {
+                // rise/run
+                dc1[r][c] = (concentrationMap[r][c-1] - concentrationMap[r][c])/2;
+            }
+            else {
+                // Linear regression
+                dc1[r][c] = linReg(concentrationMap[r][c-1], concentrationMap[r][c], concentrationMap[r][c+1]);
+            }
+        }
+    }
+    // 2nd derrivatives
+    for (r = 0; r < HEIGHT; r++){
+        for (c= 0; c < WIDTH; c++){
+            // Edge cases use simple slope equation
+            if (r == 0) {
+                // rise/run
+                dr2[r][c] = (dr1[r+1][c] - dr1[r][c])/2;
+            }
+            else if (r == HEIGHT-1) {
+                // rise/run
+                dr2[r][c] = (dr1[r-1][c] - dr1[r][c])/2;
+            }
+            else {
+                // Linear regression
+                dr2[r][c] = linReg(dr1[r-1][c], dr1[r][c], dr1[r+1][c]);
+            }
+            
+            if (c == 0) {
+                // rise/run
+                dc2[r][c] = (dc1[r][c+1] - dc1[r][c])/2;
+            }
+            else if (c == WIDTH-1) {
+                // rise/run
+                dc2[r][c] = (dc1[r][c-1] - dc1[r][c])/2;
+            }
+            else {
+                // Linear regression
+                dc2[r][c] = linReg(dc1[r][c-1], dc1[r][c], dc1[r][c+1]);
+            }
+        }
+    }
+    // printfMatrix(dc2);
+    // printfMatrix(dr2);
+    // Fick's Law: Flux = V/A, D = Diffusion const, delta(concentation)
+    // dC/dt = D * (d2C_x/dx2 + d2C_y/dy2)
+    for (r = 1; r < HEIGHT-2; r++){
+        for (c= 1; c < WIDTH-2; c++){
+            // concentrationMap[r][c] -= DIFF_CONST * (dr2[r][c] + dc2[r][c]);
+            // concentrationMap[r+1][c+1] += DIFF_CONST * (dr2[r][c] + dc2[r][c]);
+            concentrationMap[r][c] += DIFF_CONST*(dr2[r][c]+dc2[r][c]);
+        }
+    }
+    float sum = 0.0;
+    for (r = 1; r < HEIGHT-1; r++){
+        for (c= 1; c < WIDTH-1; c++){
+            sum+=concentrationMap[r][c];
+        }
+    }
+    // printGrid();
 }
