@@ -22,6 +22,7 @@
 #define HEIGHT 200 // height and width of the grid in pixels (max 1 cell per pixel)
 #define WIDTH 200
 
+#define RESOLUTION 5 // how fine to quantize
 #define DIFF_CONST .1
 
 #define NONE 15
@@ -109,31 +110,39 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
         }
     }
 
-    // 1/3 -> 2/3 vertically & 1/4 -> 3/4 horizontally rectangle of 25
-    for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
+    // 1/4 -> 3/4 vertically & 1/4 -> 3/4 horizontally rectangle of 25
+    for (r = HEIGHT/4; r < 3*HEIGHT/4; r++){
         for (c = WIDTH/4; c < 3*WIDTH/4; c++){
             concentrationMap[r][c] = 25;
         }
     }
+    for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
+        for (c = WIDTH/3; c < 2*WIDTH/3; c++){
+            concentrationMap[r][c] = 70;
+        }
+    }
+    for (r = HEIGHT/2-5; r < HEIGHT/2+5; r++){
+        for (c = WIDTH/2-5; c < WIDTH/2+5; c++){
+            concentrationMap[r][c] = 100;
+        }
+    }
 
-
-
-//     for (r = 1; r < HEIGHT-1; r++){
-//         for (c = 1; c < WIDTH-1; c++){
-//             concentrationMap[r][c] = 0;
-//         }
-//     }
-//     for (r = HEIGHT/2; r < 2*HEIGHT/3; r++){
-//         for (c = WIDTH/2; c < 3*WIDTH/4; c++){
-//             concentrationMap[r][c] = 3;
-//         }
-//     }
+    // for (r = 1; r < HEIGHT-1; r++){
+    //     for (c = 1; c < WIDTH-1; c++){
+    //         concentrationMap[r][c] = 0;
+    //     }
+    // }
+    // for (r = HEIGHT/2; r < 2*HEIGHT/3; r++){
+    //     for (c = WIDTH/2; c < 3*WIDTH/4; c++){
+    //         concentrationMap[r][c] = 3;
+    //     }
+    // }
     
-//     for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
-//         for (c = WIDTH/4; c < 3*WIDTH/4; c++){
-//             concentrationMap[r][c] = 25;
-//         }
-//     }
+    // for (r = HEIGHT/3; r < 2*HEIGHT/3; r++){
+    //     for (c = WIDTH/4; c < 3*WIDTH/4; c++){
+    //         concentrationMap[r][c] = 25;
+    //     }
+    // }
     
 //     for (r = 2; r < 5; r++){
 //         for (c= 2; c < 9; c++){
@@ -154,18 +163,18 @@ void EMSCRIPTEN_KEEPALIVE setUp(){
     //     }
     // }
     
-//     for (r = 0; r < HEIGHT; r++){
-//         for (c = 0; c < WIDTH; c++){
+    // for (r = 0; r < HEIGHT; r++){
+    //     for (c = 0; c < WIDTH; c++){
 
-//             if (r == 0 || c == 0 || r == HEIGHT-1 || c == WIDTH-1){
-//                 concentrationMap[r][c] = 0;
-//                 continue;
-//             }
-//             concentrationMap[r][c] += 5*(sin(r/30)+1)*(sin(c/30)+1);
-//             concentrationMap[r][c] += 5*(sin(r/15))*(sin(c/15));
+    //         if (r == 0 || c == 0 || r == HEIGHT-1 || c == WIDTH-1){
+    //             concentrationMap[r][c] = 0;
+    //             continue;
+    //         }
+    //         concentrationMap[r][c] += 5*(sin(r/30)+1)*(sin(c/30)+1);
+    //         concentrationMap[r][c] += 5*(sin(r/15))*(sin(c/15));
 
-//         }
-//     }
+    //     }
+    // }
 
 
 }
@@ -174,7 +183,7 @@ void EMSCRIPTEN_KEEPALIVE quantize(){
     int r, c;
     for (r = 0; r < HEIGHT; r++){
         for (c = 0; c < WIDTH; c++){
-            quantizedCM[r][c] = (int)((concentrationMap[r][c])/10);
+            quantizedCM[r][c] = (int)((concentrationMap[r][c])/RESOLUTION);
         }
     }
 }
@@ -419,7 +428,7 @@ point* EMSCRIPTEN_KEEPALIVE getPolygons(){
                 DEBUG(printMatrix(gridCpy));
                 addPoint(seqListPtr++, r, c, thisCell, 0);
             }
-            
+            free(T);
         }
     }
     DEBUG(printMatrix(gridCpy));
@@ -540,11 +549,11 @@ void EMSCRIPTEN_KEEPALIVE diffuse(){
             // Edge cases use simple slope equation
             if (r == 0) {
                 // rise/run
-                dr2[r][c] = (dr1[r+1][c] - dr1[r][c])/2;
+                dr2[r][c] = (dr1[r+1][c] - dr1[r][c]);
             }
             else if (r == HEIGHT-1) {
                 // rise/run
-                dr2[r][c] = (dr1[r-1][c] - dr1[r][c])/2;
+                dr2[r][c] = (dr1[r-1][c] - dr1[r][c]);
             }
             else {
                 // Linear regression
@@ -553,11 +562,11 @@ void EMSCRIPTEN_KEEPALIVE diffuse(){
             
             if (c == 0) {
                 // rise/run
-                dc2[r][c] = (dc1[r][c+1] - dc1[r][c])/2;
+                dc2[r][c] = (dc1[r][c+1] - dc1[r][c]);
             }
             else if (c == WIDTH-1) {
                 // rise/run
-                dc2[r][c] = (dc1[r][c-1] - dc1[r][c])/2;
+                dc2[r][c] = (dc1[r][c-1] - dc1[r][c]);
             }
             else {
                 // Linear regression

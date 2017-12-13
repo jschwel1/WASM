@@ -1,13 +1,20 @@
-
+var resolution = 5;
 var scale = 2;
 function runAndDraw(){
 	var start = new Date().getTime();
-	var r = Module._getPolygons();
+	try {
+		var r = Module._getPolygons();
+	}
+	catch (e) {
+		console.error(e);
+		return;
+	}
 	var arr = Module["HEAP32"].subarray(r/4, r/4+20000);
 	
 	var ctx = document.querySelector("canvas").getContext("2d");
 	ctx.beginPath();
 	ctx.moveTo(arr[0]*scale, arr[1]*scale);
+	ctx.lineWidth=scale;
 	var sptx = arr[0];
 	var spty = arr[1];
 	for (var i = 4; i < arr.length-1; i+=4){
@@ -18,7 +25,7 @@ function runAndDraw(){
 	    }
 		if (thisX == sptx && thisY == spty){
         	    var enc = arr[i+2];
-        	    var fillVal = Math.floor(255*enc/10);
+        	    var fillVal = 255-Math.ceil(2.55*enc*resolution);
         	   // ctx.fillStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
         	    ctx.strokeStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
 				ctx.closePath();
@@ -41,6 +48,7 @@ function runAndDraw(){
 	ctx.strokeStyle = "rgb("+fillVal+", "+fillVal+", "+fillVal+")";
 	ctx.closePath();
 	ctx.stroke();
+	Module._free(r);
 	var end = new Date().getTime();
 // 	console.log(end-start + " ms");
     return (end-start);
@@ -101,7 +109,7 @@ function animate(time){
     
 }
 
-function startAnimateDiffustion(iterations){
+function startAnimateDiffusion(iterations){
     level = iterations || 1;
     requestAnimationFrame(animateDiffusion);
 }
@@ -109,6 +117,7 @@ function startAnimateDiffustion(iterations){
 
 var lastTime = 0;
 function animateDiffusion(time){
+    if (lastTime == null) lastTime = time;
 	if (time > lastTime+30) {
 		lastTime = time;
         var ctx = document.querySelector("canvas").getContext("2d");
